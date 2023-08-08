@@ -81,6 +81,32 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 addr;
+  int len;
+  int bitmask;
+  //获取当前进程
+  struct proc *p = myproc();
+  if (argint(1, &len) < 0)
+  {
+    return -1;
+  }
+  if (argaddr(0, &addr) < 0)
+  {
+    return -1;
+  }
+  if (argint(2, &bitmask) < 0)
+  {
+    return -1;
+  }
+  int res = 0;
+  for (int i = 0; i < len; i ++)
+  {
+    int va=addr+i*PGSIZE;
+    int abit = vm_pgacess(p->pagetable, va);
+    res = res | abit << i; //置在那一位上
+  }
+  if (copyout(p->pagetable, bitmask, (char *)&res, sizeof(res)) < 0)
+    return -1;
   return 0;
 }
 #endif
