@@ -8,6 +8,17 @@
 #define NBUCKET 5
 #define NKEYS 100000
 
+
+pthread_mutex_t locks[NBUCKET]; // one lock per bucket
+
+void init_locks() {
+  // 在main函数一开始 呼叫一下这个函数
+  for (int i = 0; i < NBUCKET; i++) {
+    pthread_mutex_init(&locks[i], NULL);
+  }
+}
+
+
 struct entry {
   int key;
   int value;
@@ -40,7 +51,7 @@ static
 void put(int key, int value)
 {
   int i = key % NBUCKET;
-
+  pthread_mutex_lock(&locks[i]); // 加bucket锁
   // is the key already present?
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
@@ -54,20 +65,21 @@ void put(int key, int value)
     // the new is new.
     insert(key, value, &table[i], table[i]);
   }
-
+  pthread_mutex_unlock(&locks[i]); // 放bucket锁
 }
 
 static struct entry*
 get(int key)
 {
   int i = key % NBUCKET;
-
+  pthread_mutex_lock(&locks[i]);  // 加bucket锁
 
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key) break;
   }
 
+  pthread_mutex_unlock(&locks[i]); // 放bucket锁s
   return e;
 }
 
