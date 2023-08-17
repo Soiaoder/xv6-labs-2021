@@ -141,15 +141,15 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  if((p->alarm_trapframe = (struct trapframe *)kalloc()) == 0){
+  if((p->alarmframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
     return 0;
   }
-
-  p->alarm_interval = 0;
+  p->tracemask = 0;
+  p->alarm_period = 0;
   p->alarm_handler = 0;
-  p->alarm_ticks = 0;
-  p->alarm_goingoff = 0;
+  p->ticks_since_last_alarm = 0;
+  p->inalarm = 0;
 
   return p;
 }
@@ -165,20 +165,22 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if (p->alarmframe) // 释放物理内存
+    kfree((void *)p->alarmframe);
+  p->alarmframe = 0;
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
+  p->inalarm = 0;
   p->name[0] = 0;
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
-  p->alarm_interval = 0;
-  p->alarm_handler = 0;
-  p->alarm_ticks = 0;
-  p->alarm_goingoff = 0;
   p->state = UNUSED;
+  p->alarm_handler = 0;
+  p->alarm_period = 0;
 }
 
 // Create a user page table for a given process,

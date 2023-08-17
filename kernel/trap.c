@@ -78,18 +78,14 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
-    if(p->alarm_interval != 0) { // 如果设定了时钟事件
-      if(--p->alarm_ticks <= 0) { // 时钟倒计时 -1 tick，如果已经到达或超过设定的 tick 数
-        if(!p->alarm_goingoff) { // 确保没有时钟正在运行
-          p->alarm_ticks = p->alarm_interval;
-          // jump to execute alarm_handler
-          *p->alarm_trapframe = *p->trapframe; // backup trapframe
-          p->trapframe->epc = (uint64)p->alarm_handler;
-          p->alarm_goingoff = 1;
-        }
-        // 如果一个时钟到期的时候已经有一个时钟处理函数正在运行，则会推迟到原处理函数运行完成后的下一个 tick 才触发这次时钟
+      p->ticks_since_last_alarm += 1;
+      if (p->inalarm == 0 && p->alarm_period != 0 && p->ticks_since_last_alarm == p->alarm_period) {
+        p->inalarm = 1;  // 避免重复进入
+        *p->alarmframe = *p->trapframe; // 备份当前寄存器
+        // save all the trapframe to alarmframe for later restore
+        // jump to the alarm handler when returning back to user space
+        p->trapframe->epc = (uint64)p->alarm_handler; // 修改跳转位置到alarm函数
       }
-    }
     yield();
   }
     
@@ -229,23 +225,4 @@ devintr()
   } else {
     return 0;
   }
-}
-
-int 
-sigalarm(int ticks, void(*handler)()) {
-  // 设置 myproc 中的相关属性
-  struct proc *p = myproc();
-  p->alarm_interval = ticks;
-  p->alarm_handler = handler;
-  p->alarm_ticks = ticks;
-  return 0;
-}
-
-int 
-sigreturn() {
-  // 将 trapframe 恢复到时钟中断之前的状态，恢复原本正在执行的程序流
-  struct proc *p = myproc();
-  *p->trapframe = *p->alarm_trapframe;
-  p->alarm_goingoff = 0;
-  return 0;
 }
